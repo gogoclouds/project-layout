@@ -86,8 +86,8 @@ func (a *App) buildInstance() (*registry.ServiceInstance, error) {
 	}
 	return &registry.ServiceInstance{
 		ID:        a.opts.id,
-		Name:      a.opts.name,
-		Version:   "",
+		Name:      a.opts.conf.Name,
+		Version:   a.opts.conf.Version,
 		Metadata:  nil,
 		Endpoints: endpoints,
 	}, nil

@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/gogoclouds/project-layout/internal/app/domain"
 	"github.com/gogoclouds/project-layout/pkg/app"
 	"github.com/gogoclouds/project-layout/pkg/conf"
 	"github.com/gogoclouds/project-layout/pkg/logger"
@@ -23,7 +24,7 @@ func main() {
 		app.WithLogger(),
 		app.WithDB(),
 		app.WithRedis(),
-		//app.WithGinServer(),
+		app.WithGinServer(domain.LoadRouter),
 		//app.WithGrpcServer(),
 	)
 	_ = newApp

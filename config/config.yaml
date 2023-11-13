@@ -28,6 +28,12 @@ logger:
   fileCompress: true
 
 # ====================================
+# registry
+registry:
+  addr: '127.0.0.1:2300'
+
+
+# ====================================
 # db
 
 # CREATE DATABASE IF NOT EXISTS `gogo` default charset utf8mb4 COLLATE utf8mb4_unicode_ci

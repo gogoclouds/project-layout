@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -35,7 +36,9 @@ func NewDB(dialector gorm.Dialector, conf Config) (*gorm.DB, error) {
 	sqlDB.SetConnMaxLifetime(time.Second * time.Duration(conf.MaxLifeTime))
 	sqlDB.SetMaxOpenConns(conf.MaxOpenConn)
 	sqlDB.SetMaxIdleConns(conf.MaxIdleConn)
-	if err = sqlDB.Ping(); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	if err = sqlDB.PingContext(ctx); err != nil {
 		return nil, fmt.Errorf("ping db err: %w", err)
 	}
 	return db, nil

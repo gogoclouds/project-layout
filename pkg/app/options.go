@@ -2,12 +2,14 @@ package app
 
 import (
 	"github.com/fsnotify/fsnotify"
+	"github.com/gin-gonic/gin"
 	"github.com/gogoclouds/project-layout/config"
 	"github.com/gogoclouds/project-layout/pkg/cache"
 	"github.com/gogoclouds/project-layout/pkg/conf"
 	"github.com/gogoclouds/project-layout/pkg/db"
 	"github.com/gogoclouds/project-layout/pkg/logger"
 	"github.com/gogoclouds/project-layout/pkg/registry"
+	"github.com/gogoclouds/project-layout/pkg/server"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"gorm.io/driver/mysql"
@@ -23,7 +25,6 @@ type options struct {
 	conf *config.Service
 
 	id        string
-	name      string
 	endpoints []*url.URL
 
 	sigs            []os.Signal
@@ -38,12 +39,6 @@ type options struct {
 func WithId(id string) Option {
 	return func(o *options) {
 		o.id = id
-	}
-}
-
-func WithName(name string) Option {
-	return func(o *options) {
-		o.name = name
 	}
 }
 
@@ -93,11 +88,11 @@ func WithLogger() Option {
 
 func WithDB() Option {
 	return func(o *options) {
-		db, err := db.NewDB(mysql.Open(o.conf.DB.Source), o.conf.DB)
+		newDB, err := db.NewDB(mysql.Open(o.conf.DB.Source), o.conf.DB)
 		if err != nil {
 			logger.Panic(err.Error())
 		}
-		o.db = db
+		o.db = newDB
 	}
 }
 
@@ -111,9 +106,11 @@ func WithRedis() Option {
 	}
 }
 
-func WithGinServer() Option {
+func WithGinServer(handler func(g *gin.Engine)) Option {
 	return func(o *options) {
-		// TODO
+		exitHttp := make(chan struct{})
+		doneExitHttp := make(chan struct{})
+		server.RunHttpServer(exitHttp, doneExitHttp, o.conf.Server.Http.Addr, handler)
 	}
 }
 
