@@ -86,7 +86,8 @@ func WithLogger() Option {
 	}
 }
 
-func WithDB() Option {
+func WithDB(tables ...[]string) Option {
+	// TODO gorm.AutoMerge
 	return func(o *options) {
 		newDB, err := db.NewDB(mysql.Open(o.conf.DB.Source), o.conf.DB)
 		if err != nil {
@@ -106,16 +107,17 @@ func WithRedis() Option {
 	}
 }
 
-func WithGinServer(handler func(g *gin.Engine)) Option {
+func WithGinServer(router func(g *gin.Engine)) Option {
 	return func(o *options) {
 		exitHttp := make(chan struct{})
 		doneExitHttp := make(chan struct{})
-		server.RunHttpServer(exitHttp, doneExitHttp, o.conf.Server.Http.Addr, handler)
+		go server.RunHttpServer(exitHttp, doneExitHttp, o.conf.Server.Http.Addr, router)
 	}
 }
 
-func WithGrpcServer() Option {
+func WithGrpcServer(svr func(rpcServer *grpc.Server)) Option {
 	return func(o *options) {
-		// TODO
+		doneExitHttp := make(chan struct{})
+		go server.RunRpcServer(doneExitHttp, o.conf.Server.Rpc.Addr, svr)
 	}
 }

@@ -20,7 +20,7 @@ func RunHttpServer(exit <-chan struct{}, doneExit chan<- struct{}, addr string, 
 	e.Use(middleware.Recovery())
 	e.Use(middleware.LoggerResponseFail())
 	healthApi(e) // provide health API
-	register(e)
+	register(e)  // register router
 
 	srv := &http.Server{Addr: addr, Handler: e}
 

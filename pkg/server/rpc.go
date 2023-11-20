@@ -4,14 +4,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health"
+	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 	"net"
-	"net/http"
 )
 
-// RegisterRpcFn RPC server
-type RegisterFn func(h http.Handler)
-
-func RunRpcServer(done chan<- struct{}, addr string, register RegisterFn) {
+func RunRpcServer(done chan<- struct{}, addr string, register func(server *grpc.Server)) {
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		panic(err)
@@ -19,6 +17,8 @@ func RunRpcServer(done chan<- struct{}, addr string, register RegisterFn) {
 	s := grpc.NewServer()
 	defer close(done)
 	defer s.GracefulStop() // 优雅停止
+	// 注册健康检查服务
+	healthgrpc.RegisterHealthServer(s, health.NewServer())
 	register(s)
 	if err = s.Serve(lis); err != nil {
 		panic(err)

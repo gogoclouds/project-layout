@@ -25,7 +25,7 @@ func main() {
 		app.WithDB(),
 		app.WithRedis(),
 		app.WithGinServer(domain.LoadRouter),
-		//app.WithGrpcServer(),
+		app.WithGrpcServer(domain.RegisterServer),
 	)
 	_ = newApp
 	//if err := newApp.Run(); err != nil {
