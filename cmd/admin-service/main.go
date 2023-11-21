@@ -27,10 +27,7 @@ func main() {
 		app.WithGinServer(domain.LoadRouter),
 		app.WithGrpcServer(domain.RegisterServer),
 	)
-	_ = newApp
-	//if err := newApp.Run(); err != nil {
-	//	logger.Panic(err.Error())
-	//}
-	logger.Info("service run ...")
-	select {}
+	if err := newApp.Run(); err != nil {
+		logger.Panic(err.Error())
+	}
 }

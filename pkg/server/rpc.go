@@ -7,22 +7,28 @@ import (
 	"google.golang.org/grpc/health"
 	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 	"net"
+	"sync"
 )
 
-func RunRpcServer(done chan<- struct{}, addr string, register func(server *grpc.Server)) {
+func RunRpcServer(exit <-chan struct{}, wg *sync.WaitGroup, addr string, register func(server *grpc.Server)) {
+	defer wg.Done()
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		panic(err)
 	}
 	s := grpc.NewServer()
-	defer close(done)
-	defer s.GracefulStop() // 优雅停止
+
 	// 注册健康检查服务
 	healthgrpc.RegisterHealthServer(s, health.NewServer())
 	register(s)
-	if err = s.Serve(lis); err != nil {
-		panic(err)
-	}
+
+	go func() {
+		if err = s.Serve(lis); err != nil {
+			panic(err)
+		}
+	}()
+	<-exit
+	s.GracefulStop() // 优雅停止
 }
 
 // RPC Dial

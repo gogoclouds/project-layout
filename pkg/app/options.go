@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -23,6 +24,9 @@ type Option func(o *options)
 
 type options struct {
 	conf *config.Service
+
+	wg   *sync.WaitGroup
+	exit chan struct{}
 
 	id        string
 	endpoints []*url.URL
@@ -109,15 +113,20 @@ func WithRedis() Option {
 
 func WithGinServer(router func(g *gin.Engine)) Option {
 	return func(o *options) {
-		exitHttp := make(chan struct{})
-		doneExitHttp := make(chan struct{})
-		go server.RunHttpServer(exitHttp, doneExitHttp, o.conf.Server.Http.Addr, router)
+		if o.exit == nil {
+			o.exit = make(chan struct{})
+		}
+		o.wg.Add(1)
+		go server.RunHttpServer(o.exit, o.wg, o.conf.Server.Http.Addr, router)
 	}
 }
 
 func WithGrpcServer(svr func(rpcServer *grpc.Server)) Option {
 	return func(o *options) {
-		doneExitHttp := make(chan struct{})
-		go server.RunRpcServer(doneExitHttp, o.conf.Server.Rpc.Addr, svr)
+		if o.exit == nil {
+			o.exit = make(chan struct{})
+		}
+		o.wg.Add(1)
+		go server.RunRpcServer(o.exit, o.wg, o.conf.Server.Rpc.Addr, svr)
 	}
 }

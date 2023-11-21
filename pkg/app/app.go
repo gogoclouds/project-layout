@@ -2,14 +2,15 @@ package app
 
 import (
 	"context"
-	"github.com/gogoclouds/project-layout/pkg/logger"
-	"github.com/gogoclouds/project-layout/pkg/registry"
-	"github.com/gogoclouds/project-layout/pkg/util"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/gogoclouds/project-layout/pkg/logger"
+	"github.com/gogoclouds/project-layout/pkg/registry"
+	"github.com/gogoclouds/project-layout/pkg/util"
 )
 
 type App struct {
@@ -22,6 +23,7 @@ type App struct {
 
 func New(opts ...Option) *App {
 	o := options{
+		wg:              &sync.WaitGroup{},
 		id:              util.UUID(),
 		sigs:            []os.Signal{syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGINT},
 		registryTimeout: 10 * time.Second,
@@ -35,6 +37,9 @@ func New(opts ...Option) *App {
 	}
 }
 
+// Run run server
+// 1.注册服务
+// 2.退出相关组件或服务
 func (a *App) Run() error {
 	instance, err := a.buildInstance()
 	if err != nil {
@@ -61,9 +66,22 @@ func (a *App) Run() error {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, a.opts.sigs...)
 	<-c
+
+	if err = a.Stop(); err != nil {
+		logger.Errorf("stop service error: %w", err)
+	}
+
+	close(a.opts.exit) // 通知http、rpc服务退出信号
+
+	// 1.等待 Http 服务结束退出
+	// 2.等待 RPC 服务结束退出
+	a.opts.wg.Wait()
+	logger.Info("service has exited")
 	return nil
 }
 
+// Stop stop server
+// 1.注销服务
 func (a *App) Stop() error {
 	a.mu.Lock()
 	instance := a.instance
