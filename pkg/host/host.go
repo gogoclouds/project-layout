@@ -1,6 +1,7 @@
 package host
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -87,4 +88,46 @@ func Extract(hostport string, lis net.Listener) (string, error) {
 		return net.JoinHostPort(result.String(), port), nil
 	}
 	return "", nil
+}
+
+func OutBoundIP() (string, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
+	}
+	lowest := int(^uint(0) >> 1)
+	var result net.IP
+	for _, iface := range ifaces {
+		if (iface.Flags & net.FlagUp) == 0 {
+			continue
+		}
+		if iface.Index < lowest || result == nil {
+			lowest = iface.Index
+		}
+		if result != nil {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, rawAddr := range addrs {
+			var ip net.IP
+			switch addr := rawAddr.(type) {
+			case *net.IPAddr:
+				ip = addr.IP
+			case *net.IPNet:
+				ip = addr.IP
+			default:
+				continue
+			}
+			if isValidIP(ip.String()) {
+				result = ip
+			}
+		}
+	}
+	if result == nil {
+		return "", errors.New("no valid ip found")
+	}
+	return result.String(), nil
 }

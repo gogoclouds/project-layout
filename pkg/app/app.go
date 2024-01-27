@@ -2,8 +2,12 @@ package app
 
 import (
 	"context"
+	"github.com/gogoclouds/project-layout/pkg/host"
+	"github.com/gogoclouds/project-layout/pkg/server"
+	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -27,6 +31,7 @@ func New(opts ...Option) *App {
 		id:              util.UUID(),
 		sigs:            []os.Signal{syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGINT},
 		registryTimeout: 10 * time.Second,
+		exit:            make(chan struct{}),
 	}
 
 	for _, opt := range opts {
@@ -49,33 +54,41 @@ func (a *App) Run() error {
 	a.instance = instance
 	a.mu.Unlock()
 
-	if a.opts.rpcServer != nil {
-		//a.opts.rpcServer.Serve()
+	opts := a.opts
+
+	if opts.httpServer != nil {
+		opts.wg.Add(1)
+		go server.RunHttpServer(opts.exit, opts.wg, opts.conf.Server.Http.Addr, opts.httpServer)
+	}
+
+	if opts.rpcServer != nil {
+		opts.wg.Add(1)
+		go server.RunRpcServer(opts.exit, opts.wg, opts.conf.Server.Rpc.Addr, opts.rpcServer)
 	}
 
 	// 注册服务
-	if a.opts.registrar != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), a.opts.registryTimeout)
+	if opts.registrar != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), opts.registryTimeout)
 		defer cancel()
-		if err := a.opts.registrar.Registry(ctx, instance); err != nil {
-			logger.Errorf("register service error: %w", err)
+		if err := opts.registrar.Registry(ctx, instance); err != nil {
+			logger.Errorf("register service error: %v", err)
 			return err
 		}
 	}
 	// 监听退出信号
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, a.opts.sigs...)
+	signal.Notify(c, opts.sigs...)
 	<-c
 
 	if err = a.Stop(); err != nil {
-		logger.Errorf("stop service error: %w", err)
+		logger.Errorf("stop service error: %v", err)
 	}
 
-	close(a.opts.exit) // 通知http、rpc服务退出信号
+	close(opts.exit) // 通知http、rpc服务退出信号
 
 	// 1.等待 Http 服务结束退出
 	// 2.等待 RPC 服务结束退出
-	a.opts.wg.Wait()
+	opts.wg.Wait()
 	logger.Info("service has exited")
 	return nil
 }
@@ -99,8 +112,29 @@ func (a *App) Stop() error {
 
 func (a *App) buildInstance() (*registry.ServiceInstance, error) {
 	endpoints := make([]string, 0)
+	httpScheme, grpcScheme := false, false
 	for _, e := range a.opts.endpoints {
+		switch strings.ToLower(e.Scheme) {
+		case "https", "http":
+			httpScheme = true
+		case "grpc":
+			grpcScheme = true
+		}
 		endpoints = append(endpoints, e.String())
+	}
+	if !httpScheme {
+		if rUrl, err := getRegistryUrl("http", a.opts.conf.Server.Http.Addr); err == nil {
+			endpoints = append(endpoints, rUrl)
+		} else {
+			logger.Errorf("get http registry err:%v", err)
+		}
+	}
+	if !grpcScheme {
+		if rUrl, err := getRegistryUrl("grpc", a.opts.conf.Server.Rpc.Addr); err == nil {
+			endpoints = append(endpoints, rUrl)
+		} else {
+			logger.Errorf("get grpc registry err:%v", err)
+		}
 	}
 	return &registry.ServiceInstance{
 		ID:        a.opts.id,
@@ -109,4 +143,16 @@ func (a *App) buildInstance() (*registry.ServiceInstance, error) {
 		Metadata:  nil,
 		Endpoints: endpoints,
 	}, nil
+}
+
+func getRegistryUrl(scheme, addr string) (string, error) {
+	ip, err := host.OutBoundIP()
+	if err != nil {
+		return "", err
+	}
+	_, ports, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", err
+	}
+	return scheme + "://" + net.JoinHostPort(ip, ports), nil
 }

@@ -50,7 +50,7 @@ func TestRegistry(t *testing.T) {
 	}()
 	time.Sleep(time.Second)
 
-	if err1 := r.Register(ctx, s); err1 != nil {
+	if err1 := r.Registry(ctx, s); err1 != nil {
 		t.Fatal(err1)
 	}
 	time.Sleep(time.Second)

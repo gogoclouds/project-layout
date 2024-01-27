@@ -9,7 +9,6 @@ import (
 	"github.com/gogoclouds/project-layout/pkg/db"
 	"github.com/gogoclouds/project-layout/pkg/logger"
 	"github.com/gogoclouds/project-layout/pkg/registry"
-	"github.com/gogoclouds/project-layout/pkg/server"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"gorm.io/driver/mysql"
@@ -34,7 +33,8 @@ type options struct {
 	sigs            []os.Signal
 	registrar       registry.ServiceRegistrar
 	registryTimeout time.Duration
-	rpcServer       *grpc.Server
+	httpServer      func(e *gin.Engine)
+	rpcServer       func(s *grpc.Server)
 
 	db    *gorm.DB
 	redis redis.UniversalClient
@@ -111,22 +111,14 @@ func WithRedis() Option {
 	}
 }
 
-func WithGinServer(router func(g *gin.Engine)) Option {
+func WithGinServer(router func(e *gin.Engine)) Option {
 	return func(o *options) {
-		if o.exit == nil {
-			o.exit = make(chan struct{})
-		}
-		o.wg.Add(1)
-		go server.RunHttpServer(o.exit, o.wg, o.conf.Server.Http.Addr, router)
+		o.httpServer = router
 	}
 }
 
 func WithGrpcServer(svr func(rpcServer *grpc.Server)) Option {
 	return func(o *options) {
-		if o.exit == nil {
-			o.exit = make(chan struct{})
-		}
-		o.wg.Add(1)
-		go server.RunRpcServer(o.exit, o.wg, o.conf.Server.Rpc.Addr, svr)
+		o.rpcServer = svr
 	}
 }

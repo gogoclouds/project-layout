@@ -6,6 +6,11 @@ import (
 	"github.com/gogoclouds/project-layout/pkg/app"
 	"github.com/gogoclouds/project-layout/pkg/conf"
 	"github.com/gogoclouds/project-layout/pkg/logger"
+	"github.com/gogoclouds/project-layout/pkg/registry"
+	"github.com/gogoclouds/project-layout/pkg/registry/etcd"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/grpc"
+	"time"
 )
 
 var filepath = flag.String("config", "config/config.yaml", "config file path")
@@ -26,8 +31,21 @@ func main() {
 		app.WithRedis(),
 		app.WithGinServer(domain.LoadRouter),
 		app.WithGrpcServer(domain.RegisterServer),
+		app.WithRegistrar(registrar()),
 	)
 	if err := newApp.Run(); err != nil {
 		logger.Panic(err.Error())
 	}
+}
+
+func registrar() registry.ServiceRegistrar {
+	client, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{"127.0.0.1:2379"},
+		DialTimeout: time.Second, DialOptions: []grpc.DialOption{grpc.WithBlock()},
+	})
+	if err != nil {
+		logger.Panicf("err: %v", err)
+	}
+	defer client.Close()
+	return etcd.New(client)
 }

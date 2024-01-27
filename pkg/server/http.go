@@ -31,7 +31,7 @@ func RunHttpServer(exit <-chan struct{}, wg *sync.WaitGroup, addr string, regist
 	// it won't block the graceful shutdown handling below
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Panicf("listen: %s\n", err)
+			logger.Panicf("http listen: %s\n", err)
 		}
 	}()
 

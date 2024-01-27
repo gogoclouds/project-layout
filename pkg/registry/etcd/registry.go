@@ -65,8 +65,8 @@ func New(client *clientv3.Client, opts ...Option) (r *Registry) {
 	}
 }
 
-// Register the registration.
-func (r *Registry) Register(ctx context.Context, service *registry.ServiceInstance) error {
+// Registry the registration.
+func (r *Registry) Registry(ctx context.Context, service *registry.ServiceInstance) error {
 	key := fmt.Sprintf("%s/%s/%s", r.opts.namespace, service.Name, service.ID)
 	value, err := marshal(service)
 	if err != nil {

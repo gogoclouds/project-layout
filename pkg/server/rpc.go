@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/gogoclouds/project-layout/pkg/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
@@ -24,7 +25,7 @@ func RunRpcServer(exit <-chan struct{}, wg *sync.WaitGroup, addr string, registe
 
 	go func() {
 		if err = s.Serve(lis); err != nil {
-			panic(err)
+			logger.Panicf("http listen: %s\n", err)
 		}
 	}()
 	<-exit
