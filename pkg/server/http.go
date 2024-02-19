@@ -16,6 +16,7 @@ import (
 )
 
 func RunHttpServer(exit <-chan struct{}, wg *sync.WaitGroup, addr string, register func(e *gin.Engine)) {
+	wg.Add(1)
 	defer wg.Done()
 	e := gin.New()
 	e.Use(gin.Logger()) // TODO -> zap.Logger

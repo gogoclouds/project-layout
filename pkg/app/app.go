@@ -57,13 +57,19 @@ func (a *App) Run() error {
 	opts := a.opts
 
 	if opts.httpServer != nil {
-		opts.wg.Add(1)
 		go server.RunHttpServer(opts.exit, opts.wg, opts.conf.Server.Http.Addr, opts.httpServer)
 	}
 
 	if opts.rpcServer != nil {
-		opts.wg.Add(1)
 		go server.RunRpcServer(opts.exit, opts.wg, opts.conf.Server.Rpc.Addr, opts.rpcServer)
+	}
+
+	ctx := context.Background()
+
+	for _, fn := range a.opts.beforeStart {
+		if err = fn(ctx); err != nil {
+			return err
+		}
 	}
 
 	// 注册服务
@@ -75,6 +81,13 @@ func (a *App) Run() error {
 			return err
 		}
 	}
+
+	for _, fn := range a.opts.afterStart {
+		if err = fn(ctx); err != nil {
+			return err
+		}
+	}
+
 	// 监听退出信号
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, opts.sigs...)
@@ -83,14 +96,23 @@ func (a *App) Run() error {
 	if err = a.Stop(); err != nil {
 		logger.Errorf("stop service error: %v", err)
 	}
+	for _, fn := range a.opts.beforeStop {
+		err = fn(ctx)
+	}
 
 	close(opts.exit) // 通知http、rpc服务退出信号
 
 	// 1.等待 Http 服务结束退出
 	// 2.等待 RPC 服务结束退出
+	a.opts.wg.Wait()
+
+	for _, fn := range a.opts.afterStop {
+		err = fn(ctx)
+	}
+
 	opts.wg.Wait()
 	logger.Info("service has exited")
-	return nil
+	return err
 }
 
 // Stop stop server

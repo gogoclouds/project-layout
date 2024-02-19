@@ -12,6 +12,7 @@ import (
 )
 
 func RunRpcServer(exit <-chan struct{}, wg *sync.WaitGroup, addr string, register func(server *grpc.Server)) {
+	wg.Add(1)
 	defer wg.Done()
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {

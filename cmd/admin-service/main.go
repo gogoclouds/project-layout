@@ -6,7 +6,6 @@ import (
 	"github.com/gogoclouds/project-layout/pkg/app"
 	"github.com/gogoclouds/project-layout/pkg/conf"
 	"github.com/gogoclouds/project-layout/pkg/logger"
-	"github.com/gogoclouds/project-layout/pkg/registry"
 	"github.com/gogoclouds/project-layout/pkg/registry/etcd"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
@@ -24,6 +23,9 @@ func init() {
 }
 
 func main() {
+	etcdClient := getEtcdClient()
+	defer etcdClient.Close()
+
 	newApp := app.New(
 		app.WithConfig(*filepath),
 		app.WithLogger(),
@@ -31,21 +33,20 @@ func main() {
 		app.WithRedis(),
 		app.WithGinServer(domain.LoadRouter),
 		app.WithGrpcServer(domain.RegisterServer),
-		app.WithRegistrar(registrar()),
+		app.WithRegistrar(etcd.New(etcdClient)),
 	)
 	if err := newApp.Run(); err != nil {
 		logger.Panic(err.Error())
 	}
 }
 
-func registrar() registry.ServiceRegistrar {
+func getEtcdClient() *clientv3.Client {
 	client, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"127.0.0.1:2379"},
 		DialTimeout: time.Second, DialOptions: []grpc.DialOption{grpc.WithBlock()},
 	})
 	if err != nil {
-		logger.Panicf("err: %v", err)
+		panic(err)
 	}
-	defer client.Close()
-	return etcd.New(client)
+	return client
 }

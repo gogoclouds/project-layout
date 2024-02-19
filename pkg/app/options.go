@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"github.com/fsnotify/fsnotify"
 	"github.com/gin-gonic/gin"
 	"github.com/gogoclouds/project-layout/config"
@@ -35,6 +36,9 @@ type options struct {
 	registryTimeout time.Duration
 	httpServer      func(e *gin.Engine)
 	rpcServer       func(s *grpc.Server)
+
+	// Before and After hook
+	beforeStart, beforeStop, afterStart, afterStop []func(context.Context) error
 
 	db    *gorm.DB
 	redis redis.UniversalClient
@@ -120,5 +124,35 @@ func WithGinServer(router func(e *gin.Engine)) Option {
 func WithGrpcServer(svr func(rpcServer *grpc.Server)) Option {
 	return func(o *options) {
 		o.rpcServer = svr
+	}
+}
+
+// Before and Afters
+
+// BeforeStart run funcs before app starts
+func BeforeStart(fn func(context.Context) error) Option {
+	return func(o *options) {
+		o.beforeStart = append(o.beforeStart, fn)
+	}
+}
+
+// BeforeStop run funcs before app stops
+func BeforeStop(fn func(context.Context) error) Option {
+	return func(o *options) {
+		o.beforeStop = append(o.beforeStop, fn)
+	}
+}
+
+// AfterStart run funcs after app starts
+func AfterStart(fn func(context.Context) error) Option {
+	return func(o *options) {
+		o.afterStart = append(o.afterStart, fn)
+	}
+}
+
+// AfterStop run funcs after app stops
+func AfterStop(fn func(context.Context) error) Option {
+	return func(o *options) {
+		o.afterStop = append(o.afterStop, fn)
 	}
 }

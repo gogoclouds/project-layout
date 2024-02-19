@@ -18,10 +18,11 @@ type Service struct {
 		Http Transport `yaml:"http"`
 		Rpc  Transport `yaml:"rpc"`
 	}
-	KV     KV              `yaml:"kv"`
-	Logger logger.Config   `yaml:"logger"`
-	DB     db.Config       `yaml:"db"`
-	Redis  cache.RedisConf `yaml:"redis"`
+	KV       KV              `yaml:"kv"`
+	Logger   logger.Config   `yaml:"logger"`
+	Registry Transport       `yaml:"registry"`
+	DB       db.Config       `yaml:"db"`
+	Redis    cache.RedisConf `yaml:"redis"`
 }
 
 // Transport 传输协议
